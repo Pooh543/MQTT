@@ -6,10 +6,11 @@
     <title>Real-time MQTT payload</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
 
-    <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
+    <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700 relative">
         <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">MQTT Dashboard</h1>
         <p class="text-center text-slate-400 text-sm mb-8">แสดงข้อมูล Real-time จาก Python ผ่าน MQTT</p>
 
@@ -18,7 +19,7 @@
             <span id="status" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">กำลังเชื่อมต่อ...</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mb-8">
             
             <div id="fire-card" class="col-span-2 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 rounded-2xl border border-emerald-500/20 text-center">
                 <span class="text-sm font-medium text-emerald-400 block mb-1">Fire Status</span>
@@ -49,23 +50,35 @@
                 <span class="text-lg font-bold text-blue-500"> px</span>
             </div>
         </div>
-        </div>
 
-        <div class="text-center mt-6 text-xs text-slate-500">
-            อัปเดตล่าสุด: <span id="time-val">--:--:--</span>
+        <div class="flex items-center justify-between border-t border-slate-700/50 pt-4 mt-6">
+            <div class="text-xs text-slate-500">
+                อัปเดตล่าสุด: <span id="time-val">--:--:--</span>
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="refreshPage()" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-arrow-rotate-right"></i> Refresh
+                </button>
+                
+                <button onclick="sendEmergency()" class="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-red-900/40 transition cursor-pointer">
+                    <i class="fa-solid fa-triangle-exclamation"></i> ฉุกเฉิน
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 1. ตั้งค่าการเชื่อมต่อสำหรับ WebSockets (HiveMQ Cloud พอร์ตบังคับคือ 8884) ---
+        // --- 1. ตั้งค่าการเชื่อมต่อสำหรับ WebSockets ---
         const mqttConfig = {
-            hostname: '52a8285132c9498abff7456d065cf11e.s1.eu.hivemq.cloud', //ห้ามมีพอร์ต หรือ wss:// นำหน้า ใส่แค่ URL ล้วนๆ
+            hostname: '52a8285132c9498abff7456d065cf11e.s1.eu.hivemq.cloud',
             port: 8884, 
-            protocol: 'wss', // ต้องเป็น wss (Secure WebSockets)
+            protocol: 'wss', 
             path: '/mqtt',
-            username: 'oatdekwat', // เปลี่ยนเป็น Username
-            password: 'Oat55555', // เปลี่ยนเป็น Password
-            topic: 'home/sensors/data'
+            username: 'oatdekwat', 
+            password: 'Oat55555', 
+            dataTopic: 'home/sensors/data',      // Topic สำหรับรับค่าเซนเซอร์
+            controlTopic: 'home/sensors/control'  // Topic สำหรับส่งคำสั่งควบคุมออกไป
         };
 
         const statusEl = document.getElementById('status');
@@ -90,10 +103,10 @@
             statusEl.innerText = "ออนไลน์";
             statusEl.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
             
-            // สมัครรับข้อมูลจาก Topic
-            client.subscribe(mqttConfig.topic, (err) => {
+            // สมัครรับข้อมูลจาก Data Topic
+            client.subscribe(mqttConfig.dataTopic, (err) => {
                 if (!err) {
-                    console.log(`Subscribed to ${mqttConfig.topic}`);
+                    console.log(`Subscribed to ${mqttConfig.dataTopic}`);
                 }
             });
         });
@@ -106,36 +119,25 @@
         });
 
         // --- 3. เมื่อมีข้อความ (Message) ส่งมาจาก Python ---
-        // --- 3. เมื่อมีข้อความ (Message) ส่งมาจาก Python ---
         client.on('message', (topic, message) => {
             try {
-                // แปลงข้อมูล string JSON กลับมาเป็น Object
                 const data = JSON.parse(message.toString());
                 
-                // อัปเดตข้อมูลลงหน้าจอเว็บปกติ
                 xEl.innerText = data.x;
                 yEl.innerText = data.y;
                 wEl.innerText = data.w;
                 hEl.innerText = data.h;
                 timeEl.innerText = data.timestamp;
                 
-                //ดึงกล่อง fire-card มาเตรียมเปลี่ยนสถานะ
                 const fireCard = document.getElementById('fire-card');
 
-                // ตรวจสอบเงื่อนไข Boolean ที่ส่งมาจาก Python
                 if (data.fire_status === true || data.fire_status === "True") {
-                    // 🚨 เมื่อพบไฟไหม้ (True)
                     fEl.innerText = "พบไฟไหม้";
                     fEl.className = "text-4xl font-extrabold text-red-500 animate-pulse";
-                    
-                    // บังคับให้เป็น col-span-2 และเปลี่ยนสีกล่องเป็นโทนแดงเตือนภัย
                     fireCard.className = "col-span-2 bg-gradient-to-br from-red-500/20 to-rose-600/20 p-6 rounded-2xl border border-red-500 text-center";
                 } else {
-                    // ✅ เมื่อสถานการณ์ปกติ (False)
                     fEl.innerText = "สถานการณ์ปกติ";
                     fEl.className = "text-2xl font-extrabold text-emerald-400";
-                    
-                    // บังคับให้เป็น col-span-2 และเปลี่ยนสีกล่องเป็นโทนเขียวปลอดภัย
                     fireCard.className = "col-span-2 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 rounded-2xl border border-emerald-500/20 text-center";
                 }
                 
@@ -143,6 +145,31 @@
                 console.error("Error parsing MQTT message:", e);
             }
         });
+
+        // --- 4. ฟังก์ชันการทำงานของปุ่มต่าง ๆ ---
+        
+        // ฟังก์ชันรีเฟรชหน้าเว็บ
+        function refreshPage() {
+            window.location.reload();
+        }
+
+        // ฟังก์ชันปุ่มฉุกเฉินส่งค่า Bool = true ไปยัง MQTT
+        function sendEmergency() {
+            if (client && client.connected) {
+                const payload = JSON.stringify({ emergency: true, timestamp: new Date().toLocaleTimeString() });
+                
+                // สั่ง Publish ค่าออกไป
+                client.publish(mqttConfig.controlTopic, payload, { qos: 1 }, (err) => {
+                    if (!err) {
+                        alert("🚨 ส่งสัญญาณฉุกเฉิน (True) สำเร็จ!");
+                    } else {
+                        alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+                    }
+                });
+            } else {
+                alert("หน้าเว็บไม่ได้เชื่อมต่อกับระบบ MQTT ในขณะนี้");
+            }
+        }
     </script>
 </body>
 </html>
