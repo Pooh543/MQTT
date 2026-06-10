@@ -106,35 +106,39 @@
         });
 
         // --- 3. เมื่อมีข้อความ (Message) ส่งมาจาก Python ---
+        // --- 3. เมื่อมีข้อความ (Message) ส่งมาจาก Python ---
         client.on('message', (topic, message) => {
             try {
                 // แปลงข้อมูล string JSON กลับมาเป็น Object
                 const data = JSON.parse(message.toString());
                 
-                // อัปเดตข้อมูลลงหน้าจอเว็บ
+                // อัปเดตข้อมูลลงหน้าจอเว็บปกติ
                 xEl.innerText = data.x;
                 yEl.innerText = data.y;
                 wEl.innerText = data.w;
                 hEl.innerText = data.h;
-                fEl.innerText = data.fire_status;
                 timeEl.innerText = data.timestamp;
+                
+                //ดึงกล่อง fire-card มาเตรียมเปลี่ยนสถานะ
+                const fireCard = document.getElementById('fire-card');
 
+                // ตรวจสอบเงื่อนไข Boolean ที่ส่งมาจาก Python
                 if (data.fire_status === true || data.fire_status === "True") {
-                    // เมื่อเป็น True: ข้อความสีแดง "พบไฟไหม้" และเปลี่ยนพื้นหลังการ์ดให้ออกโทนแดง/ส้มเตือนภัย
+                    // 🚨 เมื่อพบไฟไหม้ (True)
                     fEl.innerText = "พบไฟไหม้";
-                    fEl.className = "text-4xl font-extrabold text-rose-500 animate-pulse"; // เพิ่มตัวหนา สีแดง และเอฟเฟกต์กระพริบ
+                    fEl.className = "text-4xl font-extrabold text-red-500 animate-pulse";
                     
-                    // (แถม) เปลี่ยนสีกล่องข้อความให้เป็นสีแดงเตือนภัย
-                    document.getElementById('fire-card').className = "col-span-2 bg-gradient-to-br from-red-550/20 to-rose-600/20 p-6 rounded-2xl border border-red-500 text-center";
+                    // บังคับให้เป็น col-span-2 และเปลี่ยนสีกล่องเป็นโทนแดงเตือนภัย
+                    fireCard.className = "col-span-2 bg-gradient-to-br from-red-500/20 to-rose-600/20 p-6 rounded-2xl border border-red-500 text-center";
                 } else {
-                    // เมื่อเป็น False: ข้อความสีเขียว "สถานการณ์ปกติ"
+                    // ✅ เมื่อสถานการณ์ปกติ (False)
                     fEl.innerText = "สถานการณ์ปกติ";
-                    fEl.className = "text-2xl font-extrabold text-emerald-400"; // ปรับขนาดลงนิดนึงให้ข้อความไม่ล้นจอ และเป็นสีเขียว
+                    fEl.className = "text-2xl font-extrabold text-emerald-400";
                     
-                    // (แถม) เปลี่ยนสีกล่องข้อความให้เป็นสีเขียวปลอดภัย
-                    document.getElementById('fire-card').className = "col-span-2 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 rounded-2xl border border-emerald-500/20 text-center";
+                    // บังคับให้เป็น col-span-2 และเปลี่ยนสีกล่องเป็นโทนเขียวปลอดภัย
+                    fireCard.className = "col-span-2 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 rounded-2xl border border-emerald-500/20 text-center";
                 }
-
+                
             } catch (e) {
                 console.error("Error parsing MQTT message:", e);
             }
