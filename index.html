@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time MQTT payload</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
+        <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">MQTT Dashboard</h1>
+        <p class="text-center text-slate-400 text-sm mb-8">แสดงข้อมูล Real-time จาก Python ผ่าน MQTT</p>
+
+        <div class="flex items-center justify-center gap-2 mb-8 bg-slate-850 p-3 rounded-xl border border-slate-700/50">
+            <span class="text-sm text-slate-400">สถานะระบบ:</span>
+            <span id="status" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">กำลังเชื่อมต่อ...</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gradient-to-br from-orange-500/10 to-red-500/10 p-6 rounded-2xl border border-orange-500/20 text-center">
+                <span class="text-sm font-medium text-orange-400 block mb-1">X</span>
+                <span id="X-val" class="text-4xl font-extrabold text-orange-500">--</span>
+                <span class="text-lg font-bold text-orange-500"> px</span>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 p-6 rounded-2xl border border-blue-500/20 text-center">
+                <span class="text-sm font-medium text-blue-400 block mb-1">Y</span>
+                <span id="Y-val" class="text-4xl font-extrabold text-blue-500">--</span>
+                <span class="text-lg font-bold text-blue-500"> px</span>
+            </div>
+        </div>
+
+        <div class="text-center mt-6 text-xs text-slate-500">
+            อัปเดตล่าสุด: <span id="time-val">--:--:--</span>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ตั้งค่าการเชื่อมต่อสำหรับ WebSockets (HiveMQ Cloud พอร์ตบังคับคือ 8884) ---
+        const mqttConfig = {
+            hostname: '52a8285132c9498abff7456d065cf11e.s1.eu.hivemq.cloud', //ห้ามมีพอร์ต หรือ wss:// นำหน้า ใส่แค่ URL ล้วนๆ
+            port: 8884, 
+            protocol: 'wss', // ต้องเป็น wss (Secure WebSockets)
+            path: '/mqtt',
+            username: 'oatdekwat', // เปลี่ยนเป็น Username
+            password: 'Oat55555', // เปลี่ยนเป็น Password
+            topic: 'home/sensors/data'
+        };
+
+        const statusEl = document.getElementById('status');
+        const xEl = document.getElementById('X-val');
+        const yEl = document.getElementById('Y-val');
+        const timeEl = document.getElementById('time-val');
+
+        // --- 2. เริ่มเชื่อมต่อ MQTT Broker ---
+        const connectUrl = `wss://${mqttConfig.hostname}:${mqttConfig.port}${mqttConfig.path}`;
+        
+        const client = mqtt.connect(connectUrl, {
+            username: mqttConfig.username,
+            password: mqttConfig.password,
+            clientId: 'Web_Dashboard_' + Math.random().toString(16).substr(2, 8)
+        });
+
+        // เมื่อเชื่อมต่อสำเร็จ
+        client.on('connect', () => {
+            statusEl.innerText = "ออนไลน์";
+            statusEl.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            
+            // สมัครรับข้อมูลจาก Topic
+            client.subscribe(mqttConfig.topic, (err) => {
+                if (!err) {
+                    console.log(`Subscribed to ${mqttConfig.topic}`);
+                }
+            });
+        });
+
+        // เมื่อเกิดข้อผิดพลาดในการเชื่อมต่อ
+        client.on('error', (err) => {
+            console.error('Connection error: ', err);
+            statusEl.innerText = "การเชื่อมต่อผิดพลาด";
+            statusEl.className = "px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        });
+
+        // --- 3. เมื่อมีข้อความ (Message) ส่งมาจาก Python ---
+        client.on('message', (topic, message) => {
+            try {
+                // แปลงข้อมูล string JSON กลับมาเป็น Object
+                const data = JSON.parse(message.toString());
+                
+                // อัปเดตข้อมูลลงหน้าจอเว็บ
+                xEl.innerText = data.x;
+                yEl.innerText = data.y;
+                timeEl.innerText = data.timestamp;
+                
+            } catch (e) {
+                console.error("Error parsing MQTT message:", e);
+            }
+        });
+    </script>
+</body>
+</html>
