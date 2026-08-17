@@ -9,16 +9,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .max-w-xl {
-            background-color: #EBB746;
+            background-color: #000000;
         }
         .g{
-            background-color: #58455f;
+            background-color: #9ea2f4;
         }
     </style>
 </head>
 <body class="g text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
 
-    <div class="max-w-xl w-full rounded-2xl shadow-xl p-8 border border-indigo-700 relative">
+    <div class="max-w-xl w-full rounded-2xl shadow-xl p-8 border border-slate-700 relative">
         <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">MQTT Dashboard</h1>
         <p class="text-center text-slate-400 text-sm mb-8">Real-time data from Python via MQTT</p>
 
@@ -143,6 +143,15 @@
                     fEl.innerText = "🔥 Fire Detected!! 🔥";
                     fEl.className = "text-2xl font-extrabold text-white animate-pulse";
                     fireCard.className = "col-span-2 bg-gradient-to-br from-red-500 to-rose-500 p-6 rounded-2xl border border-red-500/20 text-center";
+                    setTimeout(() => {
+                        if (confirm("🚨 ต้องการส่งสัญญาณเตือนภัยหรือไม่?")) {
+                            // ถ้ากด OK จะเข้ามาทำงานในนี้
+                            sendEmergency();
+                        } else {
+                            // ถ้ากด Cancel
+                            console.log("ยกเลิกการส่งสัญญาณ");
+                    }
+                    },1000);//ตั้งหน่วงเวลาก่อน pop up
                 } else {
                     fEl.innerText = "Stable";
                     fEl.className = "text-2xl font-extrabold text-white-400";
